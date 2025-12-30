@@ -32,6 +32,8 @@ from denoising_diffusion_pytorch.attend import Attend
 
 from denoising_diffusion_pytorch.version import __version__
 
+from astropy.io import fits
+
 # constants
 
 ModelPrediction =  namedtuple('ModelPrediction', ['pred_noise', 'pred_x_start'])
@@ -840,6 +842,11 @@ class GaussianDiffusion(Module):
         img = self.normalize(img)
         return self.p_losses(img, t, *args, **kwargs)
 
+
+
+
+
+
 # dataset classes
 
 class Dataset(Dataset):
@@ -847,7 +854,7 @@ class Dataset(Dataset):
         self,
         folder,
         image_size,
-        exts = ['jpg', 'jpeg', 'png', 'tiff'],
+        exts = ['jpg', 'jpeg', 'png', 'tiff', 'fits'],
         augment_horizontal_flip = False,
         convert_image_to = None
     ):
@@ -871,7 +878,18 @@ class Dataset(Dataset):
 
     def __getitem__(self, index):
         path = self.paths[index]
-        img = Image.open(path)
+        if path.split('.')[-1] != 'fits':
+            img = Image.open(path)
+        else:
+            dat = fits.getdata(path).astype(np.float32)
+            dat = np.nan_to_num(dat)
+            vmin, vmax = np.percentile(dat, [0.5, 99.5])
+            if vmax <= vmin:
+                raise ValueError(f"Bad scaling range: vmin={vmin}, vmax={vmax}")
+            norm = (dat - vmin) / (vmax - vmin)
+            norm = np.clip(norm, 0.0, 1.0)
+            img8 = (norm * 255.0).astype(np.uint8)
+            img = Image.fromarray(img8, mode="L")
         return self.transform(img)
 
 # trainer class
