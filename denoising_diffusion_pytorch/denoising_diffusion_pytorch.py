@@ -878,7 +878,7 @@ class Dataset(Dataset):
 
     def __getitem__(self, index):
         path = self.paths[index]
-        if path.split('.')[-1] != 'fits':
+        if path.suffix.lower != 'fits':
             img = Image.open(path)
         else:
             dat = fits.getdata(path).astype(np.float32)
